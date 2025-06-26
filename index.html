@@ -101,129 +101,136 @@
   <div class="cards" id="cards-container"></div>
   <button class="add-btn" onclick="addCard()">+</button>
 
-  <script>
-    const scriptURL = "https://script.google.com/macros/s/AKfycbzlsaGDzUhdaBnojjHtRKfDj8ZLkAFIVLkcjKJwbvJPm4cYYLCNRHNJoIbj1QixIqdyZw/exec";
-    const pastelColors = [
-      "#FFB3BA", "#B3D1FF", "#BAFFC9", "#FFFFBA", "#E3B3FF",
-      "#B3FFF5", "#FFD9B3", "#A6E3B2", "#FFB3F0", "#FFCCE5"
-    ];
-    let cardsData = [];
+ <script>
+  const scriptURL = "https://script.google.com/macros/s/AKfycbzlsaGDzUhdaBnojjHtRKfDj8ZLkAFIVLkcjKJwbvJPm4cYYLCNRHNJoIbj1QixIqdyZw/exec";
+  const pastelColors = [
+    "#FFB3BA", "#B3D1FF", "#BAFFC9", "#FFFFBA", "#E3B3FF",
+    "#B3FFF5", "#FFD9B3", "#A6E3B2", "#FFB3F0", "#FFCCE5"
+  ];
+  let cardsData = [];
 
-    function fetchData() {
-      fetch(scriptURL)
-        .then(response => response.json())
-        .then(data => {
-          cardsData = data.slice(1).map(row => ({
-            name: row[0],
-            amount: row[1],
-            color: row[2] || "#B3D1FF"
-          }));
-          renderCards();
-        })
-        .catch(err => alert("Error loading data 😭"));
-    }
-
-    function saveData() {
-      fetch(scriptURL, {
-        method: "POST",
-        body: JSON.stringify(cardsData),
-        headers: {
-          "Content-Type": "application/json"
-        }
+  function fetchData() {
+    fetch(scriptURL)
+      .then(response => response.json())
+      .then(data => {
+        cardsData = data.slice(1).map(row => ({
+          name: row[0],
+          amount: "₱" + parseInt(row[1] || "0").toLocaleString(),
+          color: row[2] || "#B3D1FF"
+        }));
+        renderCards();
       })
-        .then(() => console.log("Saved successfully"))
-        .catch(err => alert("Error saving 😢"));
-    }
+      .catch(err => alert("Error loading data 😭"));
+  }
 
-    function addCard() {
-      const newCard = {
-        name: "Wallet",
-        amount: "₱0",
-        color: pastelColors[Math.floor(Math.random() * pastelColors.length)]
+  function saveData() {
+    const sanitizedData = cardsData.map(card => ({
+      name: card.name,
+      amount: card.amount.replace(/[^\d]/g, ""), // removes ₱ and commas
+      color: card.color
+    }));
+
+    fetch(scriptURL, {
+      method: "POST",
+      body: JSON.stringify(sanitizedData),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+      .then(() => console.log("Saved successfully"))
+      .catch(err => alert("Error saving 😢"));
+  }
+
+  function addCard() {
+    const newCard = {
+      name: "Wallet",
+      amount: "₱0",
+      color: pastelColors[Math.floor(Math.random() * pastelColors.length)]
+    };
+    cardsData.push(newCard);
+    renderCards();
+    saveData();
+  }
+
+  function deleteCard(index) {
+    cardsData.splice(index, 1);
+    renderCards();
+    saveData();
+  }
+
+  function updateCard(index, key, value) {
+    cardsData[index][key] = value;
+    renderCards(); // re-render to update total
+    saveData();
+  }
+
+  function calculateTotal() {
+    let total = 0;
+    cardsData.forEach(card => {
+      let numeric = parseInt(card.amount.replace(/[^\d]/g, ""));
+      if (!isNaN(numeric)) total += numeric;
+    });
+    return "₱" + total.toLocaleString();
+  }
+
+  function renderCards() {
+    const container = document.getElementById("cards-container");
+    const totalDisplay = document.getElementById("totalDisplay");
+    container.innerHTML = "";
+    cardsData.forEach((card, index) => {
+      const cardDiv = document.createElement("div");
+      cardDiv.className = "card";
+      cardDiv.style.borderLeftColor = card.color;
+
+      const nameInput = document.createElement("input");
+      nameInput.value = card.name;
+      nameInput.oninput = (e) => updateCard(index, "name", e.target.value);
+
+      const amountInput = document.createElement("input");
+      amountInput.value = card.amount;
+      amountInput.className = "amount";
+      amountInput.oninput = (e) => updateCard(index, "amount", e.target.value);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.innerText = "✖";
+      deleteBtn.onclick = () => deleteCard(index);
+
+      const colorBtn = document.createElement("div");
+      colorBtn.className = "color-picker";
+      colorBtn.innerHTML = "🎨";
+      colorBtn.onclick = () => {
+        const options = cardDiv.querySelector(".color-options");
+        options.style.display = options.style.display === "block" ? "none" : "block";
       };
-      cardsData.push(newCard);
-      renderCards();
-      saveData();
-    }
 
-    function deleteCard(index) {
-      cardsData.splice(index, 1);
-      renderCards();
-      saveData();
-    }
+      const colorOptions = document.createElement("div");
+      colorOptions.className = "color-options";
 
-    function updateCard(index, key, value) {
-      cardsData[index][key] = value;
-      renderCards(); // re-render to update total
-      saveData();
-    }
-
-    function calculateTotal() {
-      let total = 0;
-      cardsData.forEach(card => {
-        let numeric = parseInt(card.amount.replace(/[^\d]/g, ""));
-        if (!isNaN(numeric)) total += numeric;
-      });
-      return "₱" + total.toLocaleString();
-    }
-
-    function renderCards() {
-      const container = document.getElementById("cards-container");
-      const totalDisplay = document.getElementById("totalDisplay");
-      container.innerHTML = "";
-      cardsData.forEach((card, index) => {
-        const cardDiv = document.createElement("div");
-        cardDiv.className = "card";
-        cardDiv.style.borderLeftColor = card.color;
-
-        const nameInput = document.createElement("input");
-        nameInput.value = card.name;
-        nameInput.oninput = (e) => updateCard(index, "name", e.target.value);
-
-        const amountInput = document.createElement("input");
-        amountInput.value = card.amount;
-        amountInput.className = "amount";
-        amountInput.oninput = (e) => updateCard(index, "amount", e.target.value);
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "delete-btn";
-        deleteBtn.innerText = "✖";
-        deleteBtn.onclick = () => deleteCard(index);
-
-        const colorBtn = document.createElement("div");
-        colorBtn.className = "color-picker";
-        colorBtn.innerHTML = "🎨";
-        colorBtn.onclick = () => {
-          const options = cardDiv.querySelector(".color-options");
-          options.style.display = options.style.display === "block" ? "none" : "block";
+      pastelColors.forEach(color => {
+        const swatch = document.createElement("div");
+        swatch.className = "color-swatch";
+        swatch.style.backgroundColor = color;
+        swatch.onclick = () => {
+          updateCard(index, "color", color);
         };
-
-        const colorOptions = document.createElement("div");
-        colorOptions.className = "color-options";
-
-        pastelColors.forEach(color => {
-          const swatch = document.createElement("div");
-          swatch.className = "color-swatch";
-          swatch.style.backgroundColor = color;
-          swatch.onclick = () => {
-            updateCard(index, "color", color);
-          };
-          colorOptions.appendChild(swatch);
-        });
-
-        cardDiv.appendChild(nameInput);
-        cardDiv.appendChild(amountInput);
-        cardDiv.appendChild(colorBtn);
-        cardDiv.appendChild(deleteBtn);
-        cardDiv.appendChild(colorOptions);
-        container.appendChild(cardDiv);
+        colorOptions.appendChild(swatch);
       });
 
-      totalDisplay.textContent = "Total: " + calculateTotal();
-    }
+      cardDiv.appendChild(nameInput);
+      cardDiv.appendChild(amountInput);
+      cardDiv.appendChild(colorBtn);
+      cardDiv.appendChild(deleteBtn);
+      cardDiv.appendChild(colorOptions);
+      container.appendChild(cardDiv);
+    });
 
-    fetchData();
-  </script>
+    totalDisplay.textContent = "Total: " + calculateTotal();
+  }
+
+  fetchData();
+</script>
+
 
 </body>
 </html>
